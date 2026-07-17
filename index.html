@@ -2129,6 +2129,11 @@ function showBalance(memberId) {
 // ═══════════════════════════════════════════════════════════════════════
 // HISTORY
 // ═══════════════════════════════════════════════════════════════════════
+function _refreshHistoryAfterTx(memberId) {
+  // [history-fix] หลังทำธุรกรรม หน่วงสั้น ๆ ให้ชีตฝั่ง server commit เสร็จก่อน แล้วดึงประวัติใหม่ (กัน read-after-write เห็นของเก่า)
+  if (!memberId) return;
+  setTimeout(function() { if (typeof showHistory === 'function') showHistory(memberId); }, 500);
+}
 function showHistory(memberId) {
   callServer('getMemberHistory', { memberId: memberId, limit: 30, includeSummary: true }, function(r) {
     if (!r.success) { showToast(r.message, 'error'); return; }
@@ -2229,7 +2234,7 @@ async function cancelTx(transId, memberId, direct) {
     callServer('voidTransaction', { transId: transId }, function(r) {
       if (!r || !r.success) { showToast((r && r.message) || 'ยกเลิกไม่สำเร็จ', 'error'); return; }
       showToast(r.message || 'ยกเลิกรายการแล้ว', 'success');
-      showHistory(memberId);
+      _refreshHistoryAfterTx(memberId);
     });
   } else {
     var reason = await uiPrompt({ title: 'ขอยกเลิกรายการ', message: 'รายการนี้เก่ากว่าวันนี้ — ต้องส่งคำขอให้แอดมินอนุมัติ\n\nระบุเหตุผลการขอยกเลิก:', placeholder: 'เหตุผล...', okText: 'ส่งคำขอ' });
@@ -2239,7 +2244,7 @@ async function cancelTx(transId, memberId, direct) {
     callServer('requestVoid', { transId: transId, reason: reason }, function(r) {
       if (!r || !r.success) { showToast((r && r.message) || 'ส่งคำขอไม่สำเร็จ', 'error'); return; }
       showToast(r.message || 'ส่งคำขอไปแอดมินแล้ว', 'success');
-      showHistory(memberId);
+      _refreshHistoryAfterTx(memberId);
     });
   }
 }
@@ -2273,7 +2278,7 @@ async function editWeight(transId, memberId, oldWeight) {
   callServer('correctDepositWeight', _corrPayload, function(r) {
     if (!r || !r.success) { showToast((r && r.message) || 'แก้ไม่สำเร็จ', 'error'); return; }
     showToast(r.message || 'แก้สำเร็จ', 'success');
-    showHistory(memberId);
+    _refreshHistoryAfterTx(memberId);
   });
 }
 
